@@ -14,7 +14,7 @@ import glob
 import time
 import sys
 import gc
-import tensorflow
+#import tensorflow
 import h5py
 from six.moves import cPickle
 ''' THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32,optimizer=fast_run,nvcc.fastmath=True python eccv_label.py '''
@@ -38,8 +38,8 @@ h5valfiles = glob.glob(h5valpath+'*.h5')
 h5valfiles.sort()
 nbh5valfiles = len(h5valfiles)
 
-nb_epoch = 10000
-        
+nb_epoch = 30
+batch_size = 10.0
 for iteration in range(1):
     # datapath='/media/disk1/bgsim/Dataset/UCF-101'
     # trainlist,testlist = makeDB(datapath=datapath,divideself=False)
@@ -60,7 +60,7 @@ for iteration in range(1):
     
     passed = 0
     randfiles = np.random.permutation(nbh5files)   
-    for idx in range(nbh5files):
+    for idx in range(1):#nbh5files):
     # for xxx in range(1):    
         
         f =h5py.File(h5files[idx],'r')
@@ -110,15 +110,25 @@ for iteration in range(1):
            label_val=np.concatenate((label_val,tmplabel),axis=0)
 	   f.close()
  
-    
+    traindata_size = input1.shape[0]
+    valdata_size = input1_val.shape[0] 
+    nb_trainbatch = np.floor(traindata_size/batch_size)
+    for iter in range(nb_epoch):
+        for batch_iter in range(int(nb_trainbatch)):
+        
+	    model.fit({'input1':input1[batch_iter*batch_size:(batch_iter+1)*batch_size],'input2':input2[batch_iter*batch_size:(batch_iter+1)*batch_size],'out':label[batch_iter*batch_size:(batch_iter+1)*batch_size]},batch_size=batch_size,nb_epoch=1,shuffle=False,verbose=1)
+           # print(histoty.hist)
 
-
-    start = time.time()
-    model.fit({'input1':input1,'input2':input2,'out':label},batch_size=10,nb_epoch=nb_epoch,shuffle=False,verbose=1,validation_data={'input1':input1_val,'input2':input2_val,'out':label_val})
-    #model.fit({'input1':input1,'input2':input2,'out':label},batch_size=128,nb_epoch=1,shuffle=True,verbose=2)
-    endfit = time.time()
-    
-    err = model.predict({'input1':input1,'input2':input2},verbose=1)       
+    #model.fit({'input1':input1,'input2':input2,'out':label},batch_size=10,nb_epoch=nb_epoch,shuffle=False,verbose=1,validation_data={'input1':input1_val,'input2':input2_val,'out':label_val})
+    #endfit = time.time()
+   
+        train_accuracy= model.evaluate({'input1':input1,'input2':input2,'out':label},batch_size=batch_size,verbose=1)
+        print('train acc:',train_accuracy)      
+        val_accuracy= model.evaluate({'input1':input1_val,'input2':input2_val,'out':label_val},batch_size=batch_size,verbose=1)      
+        print('val acc:',val_accuracy) 
+    	### save model weights
+	savename = "%05d" % iteration
+        model.save_weights(savepath+'model_'+savename+'.hdf5', overwrite=True)
         #progbar.update(tidx+passed)
     
     batchtotAP = 0
@@ -147,9 +157,6 @@ for iteration in range(1):
     #del input1,input2,label
     #gc.collect()
     
-    ### save model weights
-    savename = "%05d" % iteration
-    model.save_weights(savepath+'model_'+savename+'.hdf5', overwrite=True)
     """    
     ######################### predict validations ##########################
     totvalloss = 0
