@@ -18,7 +18,7 @@ import gc
 import h5py
 from six.moves import cPickle
 
-''' THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32,optimizer=fast_run,nvcc.fastmath=True python eccv_label_test.py '''
+''' THEANO_FLAGS=mode=FAST_RUN,device=gpu1,floatX=float32,optimizer=fast_run,nvcc.fastmath=True python eccv_label_test.py '''
 def loadnet(trainednet= None):
   model = makenetwork.siames_label()
   if trainednet:
@@ -28,7 +28,8 @@ def loadnet(trainednet= None):
 
 if __name__ =="__main__":
 
-  trainednet = '/research1/YOON/ECCV2016/keras/result/model_00000.hdf5'
+  gc.collect()
+  trainednet = '/research1/YOON/ECCV2016/keras/result/model_00009.hdf5'
   
   LFpath ='/research1/db/iccv2015/HCI/train/'
   h5files = glob.glob(LFpath+'*.h5')
@@ -55,8 +56,10 @@ if __name__ =="__main__":
 	sub1_img =images[sub_first[0],sub_first[1],:,:,:]  
 	sub2_img =images[sub_second[0],sub_second[1],:,:,:]  
 	
-	sub1_img = cv2.cvtColor(sub1_img,cv2.COLOR_BGR2GRAY)
-	sub2_img = cv2.cvtColor(sub2_img,cv2.COLOR_BGR2GRAY)
+	sub1_img = cv2.cvtColor(sub1_img,cv2.COLOR_BGR2YCR_CB)
+	sub2_img = cv2.cvtColor(sub2_img,cv2.COLOR_BGR2YCR_CB)
+	sub1_img = sub1_img[10:52,10:52]
+	sub2_img = sub2_img[10:52,10:52]
         sub1_img = np.reshape(sub1_img,(1,1,sub1_img.shape[0],sub1_img.shape[1]))
         sub2_img = np.reshape(sub2_img,(1,1,sub2_img.shape[0],sub2_img.shape[1]))
 	print('images shape:',images.shape)
