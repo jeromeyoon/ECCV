@@ -25,7 +25,7 @@ savepath = '/research1/YOON/ECCV2016/keras/result/'
 print('make network and compile')
 model = makenetwork.siames_label()
 print('load network')
-model.compile(optimizer='sgd',loss={'out':'categorical_crossentropy'} )
+model.compile(optimizer='adam',loss={'out':'categorical_crossentropy'} )
 print('End compiling model')
 
 h5trainpath = '/research1/YOON/ECCV2016/42x42/h5_train/'
@@ -39,7 +39,7 @@ h5valfiles.sort()
 nbh5valfiles = len(h5valfiles)
 
 nb_epoch = 30
-batch_size = 10.0
+batch_size = 128
 for iteration in range(1):
     # datapath='/media/disk1/bgsim/Dataset/UCF-101'
     # trainlist,testlist = makeDB(datapath=datapath,divideself=False)
@@ -60,7 +60,7 @@ for iteration in range(1):
     
     passed = 0
     randfiles = np.random.permutation(nbh5files)   
-    for idx in range(1):#nbh5files):
+    for idx in range(nbh5files):
     # for xxx in range(1):    
         
         f =h5py.File(h5files[idx],'r')
@@ -68,7 +68,7 @@ for iteration in range(1):
 	   input1 = f['data1'][()]
            input2 = f['data2'][()]
            label = f['label'][()]        
-			
+         			
 	   datasize = input1.shape[0]
            label = np.reshape(label,[datasize])
 	   label = np_utils.to_categorical(label, 13)
@@ -84,7 +84,9 @@ for iteration in range(1):
            input2=np.concatenate((input2,tmpinput2),axis=0)
            label=np.concatenate((label,tmplabel),axis=0)
 	   f.close()
-    
+    input1 = input1.astype('float32')
+    input2 = input2.astype('float32')     
+ 
     for idx in range(nbh5valfiles):
     # for xxx in range(1):    
         
@@ -112,11 +114,21 @@ for iteration in range(1):
  
     traindata_size = input1.shape[0]
     valdata_size = input1_val.shape[0] 
-    nb_trainbatch = np.floor(traindata_size/batch_size)
+    nb_trainbatch = int(np.ceil(float(traindata_size)/batch_size))
     for iter in range(nb_epoch):
         for batch_iter in range(int(nb_trainbatch)):
-        
-	    model.fit({'input1':input1[batch_iter*batch_size:(batch_iter+1)*batch_size],'input2':input2[batch_iter*batch_size:(batch_iter+1)*batch_size],'out':label[batch_iter*batch_size:(batch_iter+1)*batch_size]},batch_size=batch_size,nb_epoch=1,shuffle=False,verbose=1)
+	    print('-'*30)
+	    print('batch %d/%d') % (batch_iter, nb_trainbatch)
+	    batch_end =(batch_iter+1) * batch_size
+	    if batch_end > input1.shape[0]:
+		nb_samples = input1.shape[0] - batch_iter * batch_size
+	    else:
+                nb_samples = batch_size
+
+            loss=model.train_on_batch({'input1':input1[batch_iter*batch_size:batch_iter*batch_size+nb_samples],'input2':input2[batch_iter*batch_size:(batch_iter)*batch_size+nb_samples],'out':label[batch_iter*batch_size:(batch_iter)*batch_size+nb_samples]})
+            #loss=model.train_on_batch({'input1':input1[batch_iter*batch_size:(batch_iter+1)*batch_size],'input2':input2[batch_iter*batch_size:(batch_iter+1)*batch_size],'out':label[batch_iter*batch_size:(batch_iter+1)*batch_size]})
+	    print('train loss:',loss[0])
+	    #model.fit({'input1':input1[batch_iter*batch_size:(batch_iter+1)*batch_size],'input2':input2[batch_iter*batch_size:(batch_iter+1)*batch_size],'out':label[batch_iter*batch_size:(batch_iter+1)*batch_size]},batch_size=batch_size,nb_epoch=1,shuffle=False,verbose=1)
            # print(histoty.hist)
 
     #model.fit({'input1':input1,'input2':input2,'out':label},batch_size=10,nb_epoch=nb_epoch,shuffle=False,verbose=1,validation_data={'input1':input1_val,'input2':input2_val,'out':label_val})
@@ -127,77 +139,9 @@ for iteration in range(1):
         val_accuracy= model.evaluate({'input1':input1_val,'input2':input2_val,'out':label_val},batch_size=batch_size,verbose=1)      
         print('val acc:',val_accuracy) 
     	### save model weights
-	savename = "%05d" % iteration
+	savename = "%05d" % iter
         model.save_weights(savepath+'model_'+savename+'.hdf5', overwrite=True)
         #progbar.update(tidx+passed)
     
-    batchtotAP = 0
-        #reterr = reterr['out']
-    """ 	
-        curAP, acc = getAP(reterr,cur_label)
-     	batchtotAP = batchtotAP + curAP
-      	totactAP = totactAP + batchtotAP
-        lastacc = lastacc + acc
-        curAP = float(totactAP) / (tidx+passed+1)
-        endap = time.time()
-        info = ''
-        info += ' acc = %.2f' % (float(lastacc)/(tidx+passed+1))
-        info += ' batchAP = %.2f' % batchtotAP
-        info += ' curAP = %.2f' % curAP
-        # info += ' read = %.2fs' % ((endread-start))
-        info += ' fit = %.2fs' % ((endfit-start))
-        info += ' calcap = %.2fs' % ((endap-endfit))
-        sys.stdout.write(info)
-        sys.stdout.flush()
-            
-        seen += (MPLC.seen)
-        totloss += MPLC.totals.get('loss')
-    """
-
-    #del input1,input2,label
-    #gc.collect()
+    	gc.collect()
     
-    """    
-    ######################### predict validations ##########################
-    totvalloss = 0
-    totvalscore = 0
-    totvallen = 0
-    valtotobjAP = 0
-    valtotactAP = 0
-    valapseen = 0
-    vallastacc = 0
-    print('\n'+str(iteration)+'th validation')
-       
-    h5valpath = '/research1/YOON/ECCV2016/42x42/h5_test/'
-    h5valfiles = glob.glob(h5valpath+'*.h5')
-    h5valfiles.sort()
-    nbh5valfiles = len(h5valfiles)	
-       
-    
-    #progbar = Progbar(target=len(RGBvals[0]))
-    for i in range(nbh5valfiles):
-        f= h5py.File(h5valfiles[i])
-	input1 = f['data1'][()]
-        input2 = f['data2'][()]
-        label = f['label'][()]
- 	 
-	datasize = input1.shape[0]
-        label = np.reshape(label,[datasize])
-	label = np_utils.to_categorical(label, 13)
-       
-        score = model.evaluate({'input1':input1,'input2':input2,'out':label},verbose=1)
-        # pdb.set_trace()
-        totvalloss += score
-            
-        #progbar.update(i)
-
-        err = model.predict({'input1':input1,'input2':input2},verbose=1)
-        batchtotAP = 0
-        #reterr = reterr['out']
-    #log.appendlist([totloss/passed,totvalloss/len(vals[0]),float(totactAP)/passed,float(valtotactAP)/len(vals[0]),float(lastacc)/passed,float(vallastacc)/len(vals[0])])
-    
-    #log.savelist(logpath)
-    
-    del input1,input2,label
-    gc.collect()
-    """
