@@ -19,7 +19,6 @@ import h5py
 from six.moves import cPickle
 ''' THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32,optimizer=fast_run,nvcc.fastmath=True python eccv_label.py '''
 
-nb_epoch = 10
 savepath = '/research1/YOON/ECCV2016/keras/result/'
 
 print('make network and compile')
@@ -27,6 +26,12 @@ model = makenetwork.siames_label()
 print('load network')
 model.compile(optimizer='adam',loss={'out':'categorical_crossentropy'} )
 print('End compiling model')
+
+trainednet = glob.glob(savepath+'*hdf5')
+if len(trainednet):
+    trainednet.reverse()
+    model.load_weights(trainednet[0])
+
 
 h5trainpath = '/research1/YOON/ECCV2016/42x42/h5_train/'
 h5files = glob.glob(h5trainpath+'*.h5')
