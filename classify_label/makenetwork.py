@@ -37,6 +37,65 @@ class Activations(MaskedLayer):
 # merge_mode : 'sum' or 'concat'
 
     
+def siames_label_vgg():
+    model = Graph()
+    model.add_input(name='input1',input_shape=(1,224,224))
+    model.add_input(name='input2', input_shape=(1,224,224))
+    shared_conv1_1  = Convolution2D(64,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv1_1,name='shared_conv1_1',inputs=['input1','input2'],outputs=['output1_conv1_1','output2_conv1_1'])
+    
+    shared_conv1_2 = Convolution2D(128,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv1_2,name='shared_conv1_2',inputs= ['output1_conv1_1','output2_conv1_1'],outputs=['output1_conv1_2','output2_conv1_2'])
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool1_1',input='output1_conv1_2')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool1_2',input='output2_conv1_2')
+    
+    shared_conv2_1= Convolution2D(128,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv2_1,name='shared_conv2_1',inputs=['pool1_1','pool1_2'],outputs=['output1_conv2_1','output2_conv2_1'])
+    shared_conv2_2= Convolution2D(128,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv2_2,name='shared_conv2_2',inputs=['output1_conv2_1','output2_conv2_1'],outputs=['output1_conv2_2','output2_conv2_2'])
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool2_1',input='output1_conv2_2')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool2_2',input='output2_conv2_2')
+    
+    shared_conv3_1= Convolution2D(256,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv3_1,name='shared_conv3_1',inputs=['pool2_1','pool2_2'],outputs=['output1_conv3_1','output2_conv3_1'])
+    shared_conv3_2= Convolution2D(256,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv3_2,name='shared_conv3_2',inputs=['output1_conv3_1','output2_conv3_1'],outputs=['output1_conv3_2','output2_conv3_2'])
+    shared_conv3_3= Convolution2D(256,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv3_3,name='shared_conv3_3',inputs=['output1_conv3_2','output2_conv3_2'],outputs=['output1_conv3_3','output2_conv3_3'])
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool3_1',input='output1_conv3_3')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool3_2',input='output2_conv3_3')
+
+    shared_conv4_1= Convolution2D(512,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv4_1,name='shared_conv4_1',inputs=['pool3_1','pool3_2'],outputs=['output1_conv4_1','output2_conv4_1'])
+    shared_conv4_2= Convolution2D(512,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv4_2,name='shared_conv4_2',inputs=['output1_conv4_1','output2_conv4_1'],outputs=['output1_conv4_2','output2_conv4_2'])
+    shared_conv4_3= Convolution2D(512,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv4_3,name='shared_conv4_3',inputs=['output1_conv4_2','output2_conv4_2'],outputs=['output1_conv4_3','output2_conv4_3'])
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool4_1',input='output1_conv4_3')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool4_2',input='output2_conv4_3')
+ 
+    shared_conv5_1= Convolution2D(512,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv5_1,name='shared_conv5_1',inputs=['pool4_1','pool4_2'],outputs=['output1_conv5_1','output2_conv5_1'])
+    shared_conv5_2= Convolution2D(512,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv5_2,name='shared_conv5_2',inputs=['output1_conv5_1','output2_conv5_1'],outputs=['output1_conv5_2','output2_conv5_2'])
+    shared_conv5_3= Convolution2D(512,3,3,activation='relu',border_mode='same')
+    model.add_shared_node(shared_conv5_3,name='shared_conv5_3',inputs=['output1_conv5_2','output2_conv5_2'],outputs=['output1_conv5_3','output2_conv5_3'])
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool5_1',input='output1_conv5_3')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool5_2',input='output2_conv5_3')
+  
+ 
+    model.add_shared_node(Flatten(),name='Flat6',inputs=['pool5_1','pool5_2'],outputs=['Flat6_1','Flat6_2'])
+    shared_dense6 = Dense(4096,activation='relu')
+    model.add_shared_node(shared_dense6,name ='dense6',inputs=['Flat6_1','Flat6_2'],outputs=['dense6_1','dense6_2'])
+    model.add_node(Dense(4096,activation='relu'),name='concatlayer',inputs=['dense6_1','dense6_2'],merge_mode='sum')    
+     
+    model.add_node(Dense(4096,activation='relu'),name='dense7',input='concatlayer')
+    model.add_node(Dense(13,activation='relu'),name='dense8',input='dense7')
+
+    model.add_node(Activation('softmax'),name='softmax',input='dense8')
+    model.add_output(name='out',input='softmax')
+
+    return model
 
 
 def siames_label():
@@ -75,19 +134,13 @@ def siames_label():
     model.add_shared_node(Flatten(),name='Flat4',inputs=['pool3_1','pool3_2'],outputs=['Flat4_1','Flat4_2'])
     #model.add_node(Flatten(),name='Flat4_2',input='pool3_2')
     
-    shared_dense5 = Dense(512)
+    shared_dense5 = Dense(1024,activation='relu')
     model.add_shared_node(shared_dense5,name ='dense5',inputs=['Flat4_1','Flat4_2'],outputs=['dense5_1','dense5_2'])
-    model.add_node(Dense(512),name='concatlayer',inputs=['dense5_1','dense5_2'],merge_mode='sum')    
-    #model.add_node(Dense(1024),name='dense6_1',input='dense5_1')
-    #model.add_node(Dense(1024),name='dense6_2',input='dense5_2')
-    #model.add_node(Dense(512),name='dense5_2',input='Flat4_2')
-    #shared_dense6= Dense(1024)
-    #model.add_node(shared_dense6,name='dense6',input='dense5',merge_mode='sum')
-    #model.add_node(Dense(1024),name='dense6_1',input='dense5_1')
-    #model.add_node(Dense(1024),name='dense6_2',input='dense5_2')
+    model.add_node(Dense(1024,activation='relu'),name='concatlayer',inputs=['dense5_1','dense5_2'],merge_mode='sum')    
      
-    model.add_node(Dense(1024),name='dense7',input='concatlayer')
-    model.add_node(Dense(1024),name='dense8',input='dense7')
+    model.add_node(Dense(1024,activation='relu'),name='dense7',input='concatlayer')
+    model.add_node(Dense(1024,activation='relu'),name='dense8',input='dense7')
+
     model.add_node(Dense(13),name='dense9',input='dense8')
 
     model.add_node(Activation('softmax'),name='softmax',input='dense9')
