@@ -1,41 +1,102 @@
 from keras.models import Sequential, Graph
-from keras.layers.core import Dense, Dropout, Activation, MaskedLayer, Flatten, RepeatVector, Reshape,Siamese
-from keras.layers.convolutional import Convolution2D, MaxPooling2D
+from keras.layers.core import Dense, Dropout, Activation, MaskedLayer, Flatten, RepeatVector, Reshape,Siamese,Merge
+from keras.layers.convolutional import Convolution2D, MaxPooling2D, ZeroPadding2D
 from keras.layers.recurrent import LSTM
 from keras.layers.embeddings import Embedding
 from keras import backend as K
-#import theano.tensor as T
+import copy
+import theano
 import pdb
-"""
-def softmaxdual(x):
-    x1 = x
-    return T.nnet.softmax(x.reshape((-1, x.shape[-1]))).reshape(x.shape)
 
-class Activations(MaskedLayer):
-    '''
-        Apply an activation function to an output.
-    '''
-    def __init__(self, activation, target=0, beta=0.1):
-        super(Activations, self).__init__()
-        # pdb.set_trace()
-        self.activation = softmaxdual
-        self.target = target
-        self.beta = beta
-
-    def get_output(self, train=False):
-        X = self.get_input(train)
-        return self.activation(X)
-
-    def get_config(self):
-        return {"name": self.__class__.__name__,
-                "activation": self.activation.__name__,
-                "target": self.target,
-                "beta": self.beta}
-"""
 
 # merge after dropout? or merge before dropout?
 # merge_mode : 'sum' or 'concat'
 
+def sharednet_label():
+    model = Graph()
+    model.add_input(name='input1',input_shape=(1,42,42))
+    model.add_input(name='input2',input_shape=(1,42,42))
+    
+    conv1_1 = Convolution2D(64,3,3,activation='relu',border_mode='same') 
+    conv1_2 = copy.deepcopy(conv1_1) 
+    model.add_node(conv1_1,name='conv1_1',input='input1')    
+    model.add_node(conv1_2,name='conv1_2',input='input2')    
+    model.nodes['conv1_2'].W = model.nodes['conv1_1'].W
+    model.nodes['conv1_2'].b = model.nodes['conv1_1'].b
+    model.nodes['conv1_2'].params =[]
+    conv2_1 = Convolution2D(64,3,3,activation='relu',border_mode='same') 
+    conv2_2 = copy.deepcopy(conv2_1)
+    model.add_node(conv2_1,name='conv2_1',input='conv1_1')    
+    model.add_node(conv2_2,name='conv2_2',input='conv1_2')    
+    model.nodes['conv2_2'].W = model.nodes['conv2_1'].W
+    model.nodes['conv2_2'].b = model.nodes['conv2_1'].b
+    model.nodes['conv2_2'].params =[]
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool2_1',input='conv2_1')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool2_2',input='conv2_2')
+
+    conv3_1 = Convolution2D(128,3,3,activation='relu',border_mode='same') 
+    conv3_2 = copy.deepcopy(conv3_1)
+    model.add_node(conv3_1,name='conv3_1',input='pool2_1')    
+    model.add_node(conv3_2,name='conv3_2',input='pool2_2')    
+    model.nodes['conv3_2'].W = model.nodes['conv3_1'].W
+    model.nodes['conv3_2'].b = model.nodes['conv3_1'].b
+    model.nodes['conv3_2'].params=[]
+    conv4_1 = Convolution2D(128,3,3,activation='relu',border_mode='same') 
+    conv4_2 = copy.deepcopy(conv4_1)
+    model.add_node(conv4_1,name='conv4_1',input='conv3_1')    
+    model.add_node(conv4_2,name='conv4_2',input='conv3_2')    
+    model.nodes['conv4_2'].W = model.nodes['conv4_1'].W
+    model.nodes['conv4_2'].b = model.nodes['conv4_1'].b
+    model.nodes['conv4_2'].params=[]
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool4_1',input='conv4_1')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool4_2',input='conv4_2')
+
+
+    conv5_1 = Convolution2D(256,3,3,activation='relu',border_mode='same') 
+    conv5_2 = copy.deepcopy(conv5_1)
+    model.add_node(conv5_1,name='conv5_1',input='pool4_1')    
+    model.add_node(conv5_2,name='conv5_2',input='pool4_2')    
+    model.nodes['conv5_2'].W = model.nodes['conv5_1'].W
+    model.nodes['conv5_2'].b = model.nodes['conv5_1'].b
+    model.nodes['conv5_2'].params=[]
+    conv6_1 = Convolution2D(256,3,3,activation='relu',border_mode='same') 
+    conv6_2 = copy.deepcopy(conv6_1)
+    model.add_node(conv6_1,name='conv6_1',input='conv5_1')    
+    model.add_node(conv6_2,name='conv6_2',input='conv5_2')    
+    model.nodes['conv6_2'].W = model.nodes['conv6_1'].W
+    model.nodes['conv6_2'].b = model.nodes['conv6_1'].b
+    model.nodes['conv6_2'].params=[]
+    conv7_1 = Convolution2D(256,3,3,activation='relu',border_mode='same') 
+    conv7_2 = copy.deepcopy(conv7_1)
+    model.add_node(conv7_1,name='conv7_1',input='conv6_1')    
+    model.add_node(conv7_2,name='conv7_2',input='conv6_2')    
+    model.nodes['conv7_2'].W = model.nodes['conv7_1'].W
+    model.nodes['conv7_2'].b = model.nodes['conv7_1'].b
+    model.nodes['conv7_2'].params=[]
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool7_1',input='conv7_1')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool7_2',input='conv7_2')
+
+    model.add_node(Flatten(),name='Flat8_1',input='pool7_1')
+    model.add_node(Flatten(),name='Flat8_2',input='pool7_2')
+
+
+    dense8_1 = Dense(1024,activation='relu')
+    dense8_2 = copy.deepcopy(dense8_1)
+    model.add_node(dense8_1,name='dense8_1',input='Flat8_1')
+    model.add_node(dense8_2,name='dense8_2',input='Flat8_2')
+    model.nodes['dense8_2'].W = model.nodes['dense8_1'].W
+    model.nodes['dense8_2'].b = model.nodes['dense8_1'].b
+    model.nodes['dense8_2'].params =[]
+
+    dense9 = Dense(1024,activation='relu')
+    model.add_node(dense9,name='dense9',inputs=['dense8_1','dense8_2'],merge_mode='sum')
+    dense10 = Dense(1024,activation='relu')
+    model.add_node(dense10,name='dense10',input='dense9')
+    model.add_node(Dense(13),name='dense11',input='dense10')
+    model.add_node(Activation('softmax'),name='softmax',input='dense11')
+    model.add_output(name='out',input='softmax')
+
+    return model
     
 def siames_label_vgg():
     model = Graph()
@@ -142,7 +203,6 @@ def siames_label():
     model.add_node(Dense(1024,activation='relu'),name='dense8',input='dense7')
 
     model.add_node(Dense(13),name='dense9',input='dense8')
-
     model.add_node(Activation('softmax'),name='softmax',input='dense9')
     model.add_output(name='out',input='softmax')
     return model
@@ -204,314 +264,54 @@ def siames_model():
     model.add_node(Dense(13),name='dense7',input='dense6')
 
     model.add_node(Activation('softmax'),name='softmax',input='dense7')
+
     model.add_output(name='out',input='softmax')
     return model
     
     
 
 
+def concate_label(model):
+   
+    for layer in model.layer:
+        w1 = layer.get_weights
+  
+        
+    model1 = Sequential()
+    model1.add(model.get_weights)
+    model1.add(Dense(1024,activation='relu'))
+    
+    model2 = Sequential()
+    model2.add(model)
+    model2.add(Dense(1024,activation='relu'))
 
-def eccvmodel_label():
+    model3 = Sequential()
+    model3.add(Merge([model1,model2],mode='sum'))
+    model3.add(Dense(1024,activation='relu'))
+    model3.add(Dense(1024,activation='relu'))
+    model3.add(Dense(13,activation='softmax'))
+    return concate_label
+
+
+def shared_label():
 	
 
-    model = Graph()
-    ### input 1 ####
-    model.add_input(name='input1',input_shape=(1,42,42))
-    model.add_input(name='input2', input_shape=(1,42,42))
-    model.add_node(Convolution2D(64,9,9,activation='relu',border_mode='valid'),name='conv1-1',input='input1')    
-    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool1-1',input='conv1-1')
-    model.add_node(Convolution2D(128,7,7,activation='relu',border_mode='valid'),name='conv2-1',input='pool1-1')    
-    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool2-1',input='conv2-1')
-    model.add_node(Convolution2D(256,5,5,activation='relu',border_mode='valid'),name='conv3-1',input='pool2-1')    
-    #### input 2 ####
-    model.add_node(Convolution2D(64,9,9,activation='relu',border_mode='valid'),name='conv1-2',input='input2')    
-    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool1-2',input='conv1-2')
-    model.add_node(Convolution2D(128,7,7,activation='relu',border_mode='valid'),name='conv2-2',input='pool1-2')    
-    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool2-2',input='conv2-2')
-    model.add_node(Convolution2D(256,5,5,activation='relu',border_mode='valid'),name='conv3-2',input='pool2-2')    
-    ### Concate ####
-    model.add_node(Convolution2D(512,1,1,border_mode='valid',activation='relu'), name='conv4', inputs=['conv3-1','conv3-2'], merge_mode='concat')
-    model.add_node(Convolution2D(512,1,1,border_mode='valid',activation='relu'),name='conv5',input='conv4')
-    
-    model.add_node(Flatten(),name='Flat',input='conv5')
-    model.add_node(Dense(512),name='dense1',input='Flat')
-    #model.add_node(Dense(512,512),name='dense2',input='dense1')
-    model.add_node(Dense(13),name='dense2',input='dense1')
-    #model.add_node(Convolution2D(512,1,1,border_mode='valid',activation='relu'),name='conv5',input='conv4')
-    #model.add_node(Convolution2D(13,1,1,border_mode='valid',activation='relu'),name='conv6',input='conv5')
-    model.add_node(Activation('softmax'),name='softmax',input='dense2')
-    model.add_output(name='out',input='softmax')
-
-
-    return model
-
-
-
-
-def makemergeconcatseq2048():
-    
     model = Sequential()
-    model.add(LSTM(8192, 4096, return_sequences=True))
-    model.add(Dropout(0.2))
-    model.add(LSTM(4096, 2048, return_sequences=False))
-    model.add(Dropout(0.2))
-    model.add(Dense(2048, 155))
-    model.add(Activation('softmax'))
-    return model
+    model.add(Convolution2D(64,3,3,activation='relu',border_mode='valid',input_shape=(1,42,42)))
+    model.add(Convolution2D(128,3,3,activation='relu',border_mode='valid'))
+    model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(Convolution2D(256,3,3,activation='relu',border_mode='valid'))
+    model.add(Convolution2D(256,3,3,activation='relu',border_mode='valid'))
+    model.add(MaxPooling2D(pool_size=(2,2)))
 
-def makemergeconcat2():
+    model.add(Convolution2D(512,3,3,activation='relu',border_mode='valid'))
+    model.add(Convolution2D(512,3,3,activation='relu',border_mode='valid'))
+    model.add(Convolution2D(512,3,3,activation='relu',border_mode='valid'))
+    #model.add(MaxPooling2D(pool_size=(2,2)))
+    model.add(Flatten())
+    model.add(Dense(1024,activation='relu'))
     
-    model = Sequential()
-    model.add(LSTM(8192, 4096, return_sequences=True))
-    model.add(Dropout(0.2))
-    model.add(LSTM(4096, 512, return_sequences=False))
-    model.add(Dropout(0.2))
-    model.add(Dense(512, 67))
-    model.add(Activation('softmax'))
-    return model
-
-def makemergesum2048():
     
-    model = Graph()
-    model.add_input(name='rgb',ndim=3)
-    model.add_input(name='of',ndim=3)
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='rgblstm',input='rgb')
-    model.add_node(Dropout(0.2),name='droprgb',input='rgblstm')
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='oflstm',input='of')
-    model.add_node(Dropout(0.2),name='dropof',input='oflstm')
-    model.add_node(LSTM(2048,2048, return_sequences=False), name='lstmmerge', inputs=['droprgb','dropof'], merge_mode='sum')
-    model.add_node(Dropout(0.2),name='droplstm',input='lstmmerge')
-    model.add_node(Dense(2048,67),name='dense1',input='droplstm')
-    model.add_node(Activation('softmax'),name='softmax1',input='dense1')
-    model.add_output(name='out',input='softmax1')
-    return model
 
-def makeobjvec_actnet():
-    
-    model = Graph()
-    model.add_input(name='objvec',ndim=3)
-    model.add_node(LSTM(2048,2048, return_sequences=True),name='inlstm',input='objvec')
-    model.add_node(Dropout(0.2),name='dropin',input='inlstm')
-    model.add_node(LSTM(2048,2048, return_sequences=False), name='lstmtrain', input='dropin')
-    model.add_node(Dropout(0.2),name='droplstm',input='lstmtrain')
-    model.add_node(Dense(2048,67),name='dense1',input='droplstm')
-    model.add_node(Activation('softmax'),name='softmax1',input='dense1')
-    model.add_output(name='out',input='softmax1')
-    return model
+    return concate_label(model) 
 
-def makemergeconcat2048obj():
-    
-    model = Graph()
-    model.add_input(name='rgb',ndim=3)
-    model.add_input(name='of',ndim=3)
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='rgblstm',input='rgb')
-    model.add_node(Dropout(0.2),name='droprgb',input='rgblstm')
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='oflstm',input='of')
-    model.add_node(Dropout(0.2),name='dropof',input='oflstm')
-    model.add_node(LSTM(4096,2048, return_sequences=False), name='lstmmerge', inputs=['droprgb','dropof'], merge_mode='concat')
-    model.add_node(Dropout(0.2),name='droplstm',input='lstmmerge')
-    model.add_node(Dense(2048,155),name='dense1',input='droplstm')
-    model.add_node(Activation('softmax'),name='softmax1',input='dense1')
-    model.add_output(name='out',input='softmax1')
-    return model
-
-def makemergeconcat2048():
-    
-    model = Graph()
-    model.add_input(name='rgb',ndim=3)
-    model.add_input(name='of',ndim=3)
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='rgblstm',input='rgb')
-    model.add_node(Dropout(0.2),name='droprgb',input='rgblstm')
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='oflstm',input='of')
-    model.add_node(Dropout(0.2),name='dropof',input='oflstm')
-    model.add_node(LSTM(4096,2048, return_sequences=False), name='lstmmerge', inputs=['droprgb','dropof'], merge_mode='concat')
-    model.add_node(Dropout(0.2),name='droplstm',input='lstmmerge')
-    model.add_node(Dense(2048,155),name='dense1',input='droplstm')
-    model.add_node(Activation('softmax'),name='softmax1',input='dense1')
-    model.add_output(name='out',input='softmax1')
-    return model
-
-def makemergeconcat1():
-    
-    model = Graph()
-    model.add_input(name='rgb',ndim=3)
-    model.add_input(name='of',ndim=3)
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='rgblstm',input='rgb')
-    model.add_node(Dropout(0.2),name='droprgb',input='rgblstm')
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='oflstm',input='of')
-    model.add_node(Dropout(0.2),name='dropof',input='oflstm')
-    model.add_node(LSTM(4096,512, return_sequences=False), name='lstmmerge', inputs=['droprgb','dropof'], merge_mode='concat')
-    model.add_node(Dropout(0.2),name='droplstm',input='lstmmerge')
-    model.add_node(Dense(512,67),name='dense1',input='droplstm')
-    model.add_node(Activation('softmax'),name='softmax1',input='dense1')
-    model.add_output(name='out',input='softmax1')
-    return model
-
-# merge after dropout? or merge before dropout?
-# merge_mode : 'sum' or 'concat'
-def makemergedrop2():
-    
-    model = Graph()
-    model.add_input(name='rgb',ndim=3)
-    model.add_input(name='of',ndim=3)
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='rgblstm',input='rgb')
-    model.add_node(Dropout(0.2),name='droprgb',input='rgblstm')
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='oflstm',input='of')
-    model.add_node(Dropout(0.2),name='dropof',input='oflstm')
-    model.add_node(LSTM(2048,512, return_sequences=False), name='lstmmerge', inputs=['droprgb','dropof'], merge_mode='sum')
-    model.add_node(Dropout(0.2),name='droplstm',input='lstmmerge')
-    model.add_node(Dense(512,67),name='dense1',input='droplstm')
-    model.add_node(Activation('softmax'),name='softmax1',input='dense1')
-    model.add_output(name='out',input='softmax1')
-    return model
-
-def makemerge2048drop2():
-    
-    model = Graph()
-    model.add_input(name='rgb',ndim=3)
-    model.add_input(name='of',ndim=3)
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='rgblstm',input='rgb')
-    model.add_node(Dropout(0.2),name='droprgb',input='rgblstm')
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='oflstm',input='of')
-    model.add_node(Dropout(0.2),name='dropof',input='oflstm')
-    model.add_node(LSTM(2048,2048, return_sequences=False), name='lstmmerge', inputs=['droprgb','dropof'], merge_mode='sum')
-    model.add_node(Dropout(0.2),name='droplstm',input='lstmmerge')
-    model.add_node(Dense(2048,67),name='dense1',input='droplstm')
-    model.add_node(Activation('softmax'),name='softmax1',input='dense1')
-    model.add_output(name='out',input='softmax1')
-    return model
-
-
-def makemergenodrop():
-    
-    model = Graph()
-    model.add_input(name='rgb',ndim=3)
-    model.add_input(name='of',ndim=3)
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='rgblstm',input='rgb')
-    model.add_node(Dropout(0.2),name='droprgb',input='rgblstm')
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='oflstm',input='of')
-    model.add_node(Dropout(0.2),name='dropof',input='oflstm')
-    model.add_node(LSTM(2048,512, return_sequences=False), name='lstmmerge', inputs=['droprgb','dropof'], merge_mode='sum')
-    model.add_node(Dense(512,67),name='dense1',input='lstmmerge')
-    model.add_node(Activation('softmax'),name='softmax1',input='dense1')
-    model.add_output(name='out',input='softmax1')
-    return model
-
-def makemergedrop5():
-    
-    model = Graph()
-    model.add_input(name='rgb',ndim=3)
-    model.add_input(name='of',ndim=3)
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='rgblstm',input='rgb')
-    model.add_node(Dropout(0.2),name='droprgb',input='rgblstm')
-    model.add_node(LSTM(4096,2048, return_sequences=True),name='oflstm',input='of')
-    model.add_node(Dropout(0.2),name='dropof',input='oflstm')
-    model.add_node(LSTM(2048,512, return_sequences=False), name='lstmmerge', inputs=['droprgb','dropof'], merge_mode='sum')
-    model.add_node(Dropout(0.5),name='droplstm',input='lstmmerge')
-    model.add_node(Dense(512,67),name='dense1',input='droplstm')
-    model.add_node(Activation('softmax'),name='softmax1',input='dense1')
-    model.add_output(name='out',input='softmax1')
-    return model
-
-
-def makegraph():
-    model = Graph()
-    model.add_input(name='input1',ndim=3)
-    model.add_node(LSTM(4096,2048, return_sequences=True), name='lstm1', input='input1')
-    model.add_node(Dropout(0.2),name='drop1',input='lstm1')
-    model.add_node(LSTM(2048,512, return_sequences=True), name='lstm2', input='drop1')
-    model.add_node(Dropout(0.2),name='drop2',input='lstm2')
-    model.add_node(LSTM(512,512, return_sequences=False), name='lstm3', input='drop2')
-    model.add_node(Dropout(0.2),name='drop3',input='lstm3')
-    model.add_node(Dense(512,67),name='dense1',input='drop3')
-    model.add_node(Dense(512,155),name='dense2',input='drop3')
-    model.add_node(Activation('softmax'),name='softmax1',input='dense1')
-    model.add_node(Activation('softmax'),name='softmax2',input='dense2')
-    model.add_output(name='actout',input='softmax1')
-    model.add_output(name='objout',input='softmax2')
-
-    return model
-
-def makeactnet():
-    model = Sequential()
-    model.add(LSTM(4096, 2048, return_sequences=True))
-    model.add(Dropout(0.2))
-    model.add(LSTM(2048, 512, return_sequences=False))
-    model.add(Dropout(0.2))
-    # model.add(LSTM(1024, 512, return_sequences=True))
-    # model.add(Dropout(0.2))
-    # model.add(LSTM(512, 512, return_sequences=False))
-    # model.add(Dropout(0.2))
-    model.add(Dense(512, 67))
-    model.add(Activation('softmax'))
-    return model
-
-def makenetworkbasic():    
-    model = Sequential()
-    # model.add(Convolution2D(96, 3, 7, 7, border_mode='same')) 
-    # model.add(Activation('relu'))
-    # # model.add(Convolution2D(96, 96, 7, 7))
-    # # model.add(Activation('relu'))
-    # model.add(MaxPooling2D(poolsize=(3, 3)))
-    # 
-    # model.add(Convolution2D(256, 96, 5, 5, border_mode='same')) 
-    # model.add(Activation('relu'))
-    # # model.add(Convolution2D(256, 256, 5, 5)) 
-    # # model.add(Activation('relu'))
-    # model.add(MaxPooling2D(poolsize=(3, 3)))
-    # 
-    # model.add(Convolution2D(512, 256, 3, 3, border_mode='same')) 
-    # model.add(Activation('relu'))
-    # model.add(MaxPooling2D(poolsize=(3, 3)))
-    # 
-    # model.add(Convolution2D(512, 512, 3, 3)) 
-    # model.add(Activation('relu'))
-    # model.add(MaxPooling2D(poolsize=(3, 3)))
-    # 
-    # model.add(Convolution2D(2048, 512, 3, 3, border_mode='same')) 
-    # model.add(Activation('relu'))
-    # # model.add(Convolution2D(2048, 2048, 3, 3)) 
-    # # model.add(Activation('relu'))
-    # model.add(MaxPooling2D(poolsize=(3, 3)))
-    # 
-    # model.add(Flatten())
-    # model.add(Dense(2048, 1024))
-    # model.add(Activation('relu'))
-    # model.add(Dropout(0.5))
-    # 
-    # model.add(Dense(1024, 101))
-    # model.add(Activation('softmax'))
-    
-    # model.add(Dense(1024, 512))
-    # model.add(Activation('relu'))
-    # model.add(Dropout(0.5))
-    # 
-    # model.add(Dense(1024, 256))
-    # model.add(Activation('relu'))
-    # model.add(Dropout(0.5))
-    
-    # # model.add(Embedding(512, 512))
-    # model.add(RepeatVector(4096))
-    # # the GRU below returns sequences of max_caption_len vectors of size 256 (our word embedding size)
-    
-    model.add(LSTM(4096, 2048, return_sequences=True))
-    model.add(Dropout(0.2))
-    model.add(LSTM(2048, 512, return_sequences=False))
-    model.add(Dropout(0.5))
-    model.add(Dense(512, 155))
-    model.add(Activation('softmax'))
-    
-    # model.add(LSTM(4096, 4096, return_sequences=True))
-    # model.add(Dropout(0.2))
-    # model.add(LSTM(4096, 2048, return_sequences=True))
-    # model.add(Dropout(0.2))
-    # model.add(LSTM(2048, 1024, return_sequences=True))
-    # model.add(Dropout(0.2))
-    # model.add(LSTM(1024, 512, return_sequences=True))
-    # model.add(Dropout(0.2))
-    # model.add(LSTM(512, 512, return_sequences=False))
-    # # model.add(Dropout(0.2))
-    # model.add(Dense(512, 67))
-    # model.add(Activation('softmax'))
-
-    return model
