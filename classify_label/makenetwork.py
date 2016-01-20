@@ -12,6 +12,95 @@ import pdb
 # merge after dropout? or merge before dropout?
 # merge_mode : 'sum' or 'concat'
 
+def sharednet_label_dropout():
+    model = Graph()
+    model.add_input(name='input1',input_shape=(1,42,42))
+    model.add_input(name='input2',input_shape=(1,42,42))
+    
+    conv1_1 = Convolution2D(64,3,3,activation='relu',border_mode='same') 
+    conv1_2 = copy.deepcopy(conv1_1) 
+    model.add_node(conv1_1,name='conv1_1',input='input1')    
+    model.add_node(conv1_2,name='conv1_2',input='input2')    
+    model.nodes['conv1_2'].W = model.nodes['conv1_1'].W
+    model.nodes['conv1_2'].b = model.nodes['conv1_1'].b
+    model.nodes['conv1_2'].params =[]
+    conv2_1 = Convolution2D(64,3,3,activation='relu',border_mode='same') 
+    conv2_2 = copy.deepcopy(conv2_1)
+    model.add_node(conv2_1,name='conv2_1',input='conv1_1')    
+    model.add_node(conv2_2,name='conv2_2',input='conv1_2')    
+    model.nodes['conv2_2'].W = model.nodes['conv2_1'].W
+    model.nodes['conv2_2'].b = model.nodes['conv2_1'].b
+    model.nodes['conv2_2'].params =[]
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool2_1',input='conv2_1')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool2_2',input='conv2_2')
+
+    conv3_1 = Convolution2D(128,3,3,activation='relu',border_mode='same') 
+    conv3_2 = copy.deepcopy(conv3_1)
+    model.add_node(conv3_1,name='conv3_1',input='pool2_1')    
+    model.add_node(conv3_2,name='conv3_2',input='pool2_2')    
+    model.nodes['conv3_2'].W = model.nodes['conv3_1'].W
+    model.nodes['conv3_2'].b = model.nodes['conv3_1'].b
+    model.nodes['conv3_2'].params=[]
+    conv4_1 = Convolution2D(128,3,3,activation='relu',border_mode='same') 
+    conv4_2 = copy.deepcopy(conv4_1)
+    model.add_node(conv4_1,name='conv4_1',input='conv3_1')    
+    model.add_node(conv4_2,name='conv4_2',input='conv3_2')    
+    model.nodes['conv4_2'].W = model.nodes['conv4_1'].W
+    model.nodes['conv4_2'].b = model.nodes['conv4_1'].b
+    model.nodes['conv4_2'].params=[]
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool4_1',input='conv4_1')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool4_2',input='conv4_2')
+
+
+    conv5_1 = Convolution2D(256,3,3,activation='relu',border_mode='same') 
+    conv5_2 = copy.deepcopy(conv5_1)
+    model.add_node(conv5_1,name='conv5_1',input='pool4_1')    
+    model.add_node(conv5_2,name='conv5_2',input='pool4_2')    
+    model.nodes['conv5_2'].W = model.nodes['conv5_1'].W
+    model.nodes['conv5_2'].b = model.nodes['conv5_1'].b
+    model.nodes['conv5_2'].params=[]
+    conv6_1 = Convolution2D(256,3,3,activation='relu',border_mode='same') 
+    conv6_2 = copy.deepcopy(conv6_1)
+    model.add_node(conv6_1,name='conv6_1',input='conv5_1')    
+    model.add_node(conv6_2,name='conv6_2',input='conv5_2')    
+    model.nodes['conv6_2'].W = model.nodes['conv6_1'].W
+    model.nodes['conv6_2'].b = model.nodes['conv6_1'].b
+    model.nodes['conv6_2'].params=[]
+    conv7_1 = Convolution2D(256,3,3,activation='relu',border_mode='same') 
+    conv7_2 = copy.deepcopy(conv7_1)
+    model.add_node(conv7_1,name='conv7_1',input='conv6_1')    
+    model.add_node(conv7_2,name='conv7_2',input='conv6_2')    
+    model.nodes['conv7_2'].W = model.nodes['conv7_1'].W
+    model.nodes['conv7_2'].b = model.nodes['conv7_1'].b
+    model.nodes['conv7_2'].params=[]
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool7_1',input='conv7_1')
+    model.add_node(MaxPooling2D(pool_size=(2,2)),name='pool7_2',input='conv7_2')
+
+    model.add_node(Flatten(),name='Flat8_1',input='pool7_1')
+    model.add_node(Flatten(),name='Flat8_2',input='pool7_2')
+
+
+    dense8_1 = Dense(1024,activation='relu')
+    dense8_2 = copy.deepcopy(dense8_1)
+    model.add_node(dense8_1,name='dense8_1',input='Flat8_1')
+    model.add_node(dense8_2,name='dense8_2',input='Flat8_2')
+    model.nodes['dense8_2'].W = model.nodes['dense8_1'].W
+    model.nodes['dense8_2'].b = model.nodes['dense8_1'].b
+    model.nodes['dense8_2'].params =[]
+
+    dense9 = Dense(1024,activation='relu')
+    model.add_node(dense9,name='dense9',inputs=['dense8_1','dense8_2'],merge_mode='sum')
+    model.add_node(Dropout(0.25), name = 'dropout10',input='dense9')
+    dense10 = Dense(1024,activation='relu')
+    model.add_node(dense10,name='dense11',input='dropout10')
+    model.add_node(Dropout(0.25),name='dropout12',input='dense11')
+    model.add_node(Dense(13),name='dense13',input='dropout12')
+    model.add_node(Activation('softmax'),name='softmax',input='dense13')
+    model.add_output(name='out',input='softmax')
+
+    return model
+
+
 def sharednet_label():
     model = Graph()
     model.add_input(name='input1',input_shape=(1,42,42))
