@@ -22,23 +22,26 @@ from six.moves import cPickle
 
 
 
-"""
-trainednet = glob.glob(savepath+'*hdf5')
-if len(trainednet):
-    trainednet.reverse()
-    model.load_weights(trainednet[0])
-"""
 
 nb_epoch = 300
 
 def shared_label():
  
-   savepath = '/research1/YOON/ECCV2016/keras/result/42x42/'
+   savepath = '/research1/YOON/ECCV2016/keras/result/42x42_dropout/'
    batch_size = 128
-   model=makenetwork.sharednet_label()
+   model=makenetwork.sharednet_label_dropout()
    #sharednet,model1,model2,model3 = makenetwork.eccvmodel_label()
    sgd =SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True) 
    model.compile(optimizer='sgd',loss={'out':'categorical_crossentropy'})
+
+
+   # load trained network
+   trainednet = glob.glob(savepath+'*hdf5')
+   if len(trainednet):
+       trainednet.sort()
+       print('load pretrained net:',trainednet[-1])
+       model.load_weights(trainednet[-1])
+
    
    h5trainpath = '/research1/YOON/ECCV2016/42x42_2/h5_train/'
    h5files = glob.glob(h5trainpath+'*.h5')
@@ -83,8 +86,10 @@ def shared_label():
            label =[]
            count =0
            print (' %d/%d') % (idx,nbh5files)
-	   for idx2 in range(s,idx):
-	
+           
+           order = np.random.permutation(range(s,idx))
+	   for idx2 in order:
+                	
                f =h5py.File(h5files[idx2],'r')
                if count == 0:
                    input1 = f['data1'][()]
