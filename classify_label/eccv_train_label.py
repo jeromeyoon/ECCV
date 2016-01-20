@@ -100,11 +100,12 @@ def shared_label():
 	           label = np.reshape(label,[datasize])
 		   label = np_utils.to_categorical(label, 13)
 	           f.close()
+	           count+=1
                else:
 	           tmpinput1 = f['data1'][()]
         	   tmpinput2 = f['data2'][()]
          	   tmplabel = f['label'][()]        
-	           tmplabel=label.astype('int32')	
+	           tmplabel = tmplabel.astype('int32')	
     		   datasize = tmpinput1.shape[0]
 	           tmplabel = np.reshape(tmplabel,[datasize])
 		   tmplabel = np_utils.to_categorical(tmplabel, 13)
