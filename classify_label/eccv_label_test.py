@@ -52,7 +52,7 @@ def gridposition(matfile):
 if __name__ =="__main__":
 
   gc.collect()
-  trainednet = '/research1/YOON/ECCV2016/keras/result/42x42_dropout/model_00001.hdf5'
+  trainednet = '/research1/YOON/ECCV2016/keras/result/42x42_dropout/model_00040.hdf5'
   combination = 'LF_position.mat'
   matfile = scipy.io.loadmat(combination)
   firstpt,secondpt,gt = gridposition(matfile['result'])
@@ -79,7 +79,23 @@ if __name__ =="__main__":
   cv2.imshow('moon',im_gray)
   cv2.waitKey()
   """
-  
+  """
+  h5trainpath = '/research1/YOON/ECCV2016/42x42_2/h5_train/'
+  h5files = glob.glob(h5trainpath+'*.h5')
+  h5files.sort()
+  nbh5files = len(h5files)
+  f =h5py.File(h5files[0],'r')
+  input1 = f['data1'][()]
+  input2 = f['data2'][()]
+  label = f['label'][()]        
+  label=label.astype('int32')	
+  datasize = input1.shape[0]
+  label = np.reshape(label,[datasize])
+  label = np_utils.to_categorical(label, 13)
+  f.close()
+  """
+
+
   if LF_img >= len(h5files):
   #if sub_first == sub_second or LF_img >= len(h5files) or len(sub_first) != 2 or len(sub_second) !=2:
 	print(' Error choose LF image carefully')
@@ -87,25 +103,32 @@ if __name__ =="__main__":
   	print('load LF image')
 	f = h5py.File(h5files[LF_img],'r')
 	images = f['LF'][()]
-	print('loaded LF image:',h5files[LF_img])
-        print('LF img shape :',images.shape)
-        #images = np.transpose(images,(4,3,2,1,0)) 
+	#print('loaded LF image:',h5files[LF_img])
+        #print('LF img shape :',images.shape)
+        #images = np.transpose(images,(1,0,2,3,4)) 
         ap =0.0; 
         numcom = firstpt.shape[0]
 	model = loadnet(trainednet)
 	model.compile(optimizer='sgd',loss={'out':'categorical_crossentropy'} )
+        """
+        print('input1 shape:',input1.shape)
+        print('input1 type:',type(input1))
+        sub1_img = input1[10,:,:,:]
+        sub2_img = input2[10,:,:,:]
+        sub1_img = np.expand_dims(sub1_img,axis=0)
+        sub2_img = np.expand_dims(sub2_img,axis=0)
         
-        sub1_img =images[0,0,:,:,:]  
-	sub2_img =images[0,2,:,:,:]
+        print('gt :',np.argmax(label[10])) 
+        """   
         
-        cv2.imwrite('img1.jpg',sub1_img)
-        cv2.imwrite('img2.jpg',sub2_img)
+        
         """ 
         cv2.imshow('img1',sub1_img)
         cv2.imshow('img2',sub2_img)
         cv2.waitKey()
         """
-	sub1_img = cv2.cvtColor(sub1_img,cv2.COLOR_BGR2GRAY)
+        """	
+        sub1_img = cv2.cvtColor(sub1_img,cv2.COLOR_BGR2GRAY)
 	sub2_img = cv2.cvtColor(sub2_img,cv2.COLOR_BGR2GRAY)
 	sub1_img = sub1_img[10:52,10:52]
 	sub2_img = sub2_img[10:52,10:52]
@@ -120,11 +143,16 @@ if __name__ =="__main__":
 	out =model.predict({'input1':sub1_img,'input2':sub2_img})
         #print ('out shape:',out.shape)
         print np.argmax(out['out'])
-
         """
+	saveim = True
         for id in range(numcom): 	
 	    sub1_img =images[firstpt[id][0],firstpt[id][1],:,:,:]  
-	    sub2_img =images[secondpt[id][0],secondpt[id][1],:,:,:]  
+	    sub2_img =images[secondpt[id][0],secondpt[id][1],:,:,:] 
+            if saveim:
+	        cv2.imwrite('img1.jpg',sub1_img)
+                cv2.imwrite('im2.jpg',sub2_img)
+	        saveim =False
+
 	    sub1_img = cv2.cvtColor(sub1_img,cv2.COLOR_BGR2GRAY)
 	    sub2_img = cv2.cvtColor(sub2_img,cv2.COLOR_BGR2GRAY)
 	    sub1_img = sub1_img[10:52,10:52]
@@ -151,4 +179,3 @@ if __name__ =="__main__":
 	        ap +=1
         ap/=numcom	
 	print(' AP :%f') % ap
-        """
