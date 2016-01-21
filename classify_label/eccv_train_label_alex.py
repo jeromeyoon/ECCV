@@ -1,4 +1,5 @@
 import numpy as np
+import numpy as np
 import random
 import cv2
 import os
@@ -18,6 +19,7 @@ import gc
 #import tensorflow
 import h5py
 from six.moves import cPickle
+from getAP import getAP
 ''' THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32,optimizer=fast_run,nvcc.fastmath=True python eccv_label.py '''
 
 
@@ -79,12 +81,16 @@ def shared_label():
  
    for iter in range(nb_epoch):
        s =0
+       total_trainacc =0.0
+       traincount =0
        print('---------------epoch %d------------') % iter
-       for idx in xrange(10,nbh5files,5):
+       for idx in xrange(5,10,10):
+       #for idx in xrange(10,nbh5files,5):
            input1 =[]
            input2=[]
            label =[]
            count =0
+           traincount +=1
            print (' %d/%d') % (idx,nbh5files)
            
            order = np.random.permutation(range(s,idx))
@@ -117,9 +123,19 @@ def shared_label():
            s= idx 	
 
            model.fit({'input1':input1,'input2':input2,'out':label},batch_size=batch_size,nb_epoch=1,shuffle=False,verbose=1)
-       val_loss= model.evaluate({'input1':input1_val,'input2':input2_val,'out':label_val},batch_size=batch_size,verbose=1)      
-       print('val loss:',val_loss) 
-       savename = "%05d" % iter
+           train_out= model.predict({'input1':input1,'input2':input2},batch_size=batch_size,verbose=1)      
+           train_out = np.argmax(train_out,axis=-1)
+           train_acc =getAP.loss(train_out,label) 
+           total_trainacc +=train_acc
+       total_trainacc /= traincount
+       print('train acc:',totla_trainacc) 
+       val_out= model.predict({'input1':input1_val,'input2':input2_val},batch_size=batch_size,verbose=0)      
+       val_out = np.argmax(val_out,axis=-1)
+       #out = np_utils.to_categorical(val_out, 13)
+       val_acc =getAP.loss(val_out,label_val) 
+       print('val acc:',val_acc)
+       savenum = iter + len(trainnednet)
+       savename = "%05d" % savenum
        model.save_weights(savepath+'model_'+savename+'.hdf5', overwrite=True)
        gc.collect()
    
@@ -252,6 +268,9 @@ def small_vgg():
         nb_trainbatch = int(np.ceil(float(traindata_size)/batch_size))
 
         model.fit({'input1':input1,'input2':input2,'out':label},batch_size=10,nb_epoch=1,shuffle=False,verbose=1,validation_data={'input1':input1_val,'input2':input2_val,'out':label_val})
+        model.preddict({'input1':input1_val,'input2':input2_val},batch_size=batch_size,verbose=1)      
+        print('val acc:',val_accuracy) 
+
         val_accuracy= model.evaluate({'input1':input1_val,'input2':input2_val,'out':label_val},batch_size=batch_size,verbose=1)      
         print('val acc:',val_accuracy) 
         ## save model weights

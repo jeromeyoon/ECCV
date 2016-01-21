@@ -18,6 +18,7 @@ import gc
 #import tensorflow
 import h5py
 from six.moves import cPickle
+import getAP
 ''' THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32,optimizer=fast_run,nvcc.fastmath=True python eccv_label.py '''
 
 
@@ -34,16 +35,13 @@ def shared_label():
    sgd =SGD(lr=0.001, decay=0, momentum=0.9, nesterov=True) 
    model.compile(optimizer='sgd',loss={'out':'categorical_crossentropy'})
 
-   """
    # load trained network
    trainednet = glob.glob(savepath+'*hdf5')
    if len(trainednet):
        trainednet.sort()
        print('load pretrained net:',trainednet[-1])
        model.load_weights(trainednet[-1])
-   """
    
-   model.load_weights('/research1/YOON/ECCV2016/keras/result/42x42/model_00250.hdf5')
    h5trainpath = '/research1/YOON/ECCV2016/42x42_2/h5_train/'
    h5files = glob.glob(h5trainpath+'*.h5')
    h5files.sort()
@@ -80,13 +78,15 @@ def shared_label():
  
    for iter in range(nb_epoch):
        s =0
+       total_trainacc=0.0
+       traincount =0
        print('---------------epoch %d------------') % iter
-       for idx in xrange(10,nbh5files,5):
+       for idx in xrange(5,nbh5files,5):
            input1 =[]
            input2=[]
            label =[]
            print (' %d/%d') % (idx,nbh5files)
-           
+           traincount +=1 
            order = np.random.permutation(range(s,idx))
            count =0
 	   for idx2 in order:
@@ -116,9 +116,18 @@ def shared_label():
                    count+=1
            s= idx 	
            model.fit({'input1':input1,'input2':input2,'out':label},batch_size=batch_size,nb_epoch=1,shuffle=False,verbose=1)
-       val_loss= model.evaluate({'input1':input1_val,'input2':input2_val,'out':label_val},batch_size=batch_size,verbose=1)      
-       print('val loss:',val_loss) 
-       savename = "%05d" % iter
+           train_out= model.predict({'input1':input1,'input2':input2},batch_size=batch_size,verbose=1)      
+           out = np.argmax(train_out['out'],axis=-1)
+           train_acc =getAP.loss(out,label) 
+           total_trainacc +=train_acc
+       total_trainacc/=traincount
+       print('train_acc:',total_trainacc)
+       val_out= model.predict({'input1':input1_val,'input2':input2_val},batch_size=batch_size,verbose=1)      
+       val_out = np.argmax(val_out['out'],axis=-1)
+       val_acc =getAP.loss(val_out,label_val) 
+       print('val_acc:',val_acc)
+       savenum = iter + len(trainednet)
+       savename = "%05d" % savenum 
        model.save_weights(savepath+'model_'+savename+'.hdf5', overwrite=True)
        gc.collect()
    
