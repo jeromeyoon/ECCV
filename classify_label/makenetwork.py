@@ -438,8 +438,9 @@ def alex_sharednet_label():
     model.add_node(dense8,name='dense8',inputs=['dense7_1','dense7_2'],merge_mode='sum')
     dense9 = Dense(4096)
     model.add_node(dense9,name='dense9',input='dense8')
-    model.add_node(Dense(13),name='dense10',input='dense9')
-    model.add_node(Activation('softmax'),name='softmax',input='dense10')
+    model.add_node(Dropout(0.25), name = 'dropout10',input='dense9')
+    model.add_node(Dense(13),name='dense11',input='dropout10')
+    model.add_node(Activation('softmax'),name='softmax',input='dense11')
     model.add_output(name='out',input='softmax')
 
     return model
