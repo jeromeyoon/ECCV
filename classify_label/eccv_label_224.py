@@ -20,7 +20,7 @@ import h5py
 from six.moves import cPickle
 ''' THEANO_FLAGS=mode=FAST_RUN,device=gpu,floatX=float32,optimizer=fast_run,nvcc.fastmath=True python eccv_label.py '''
 
-savepath = '/research1/YOON/ECCV2016/keras/result/42x42/'
+savepath = '/research1/YOON/ECCV2016/keras/result/224x224/'
 
 
 """
@@ -33,18 +33,18 @@ if len(trainednet):
 nb_epoch = 30
 
 def VGG_16():
-   batch_size = 128
-   model=makenetwork.sharednet_label()
+   batch_size = 30
+   model=makenetwork.vgg_label()
    #sharednet,model1,model2,model3 = makenetwork.eccvmodel_label()
    sgd =SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True) 
    model.compile(optimizer='sgd',loss={'out':'categorical_crossentropy'})
    
-   h5trainpath = '/research1/YOON/ECCV2016/42x42/h5_train/'
+   h5trainpath = '/research1/YOON/ECCV2016/224x224/h5_train/'
    h5files = glob.glob(h5trainpath+'*.h5')
    h5files.sort()
    nbh5files = len(h5files)
 
-   h5valpath = '/research1/YOON/ECCV2016/42x42/h5_test/'
+   h5valpath = '/research1/YOON/ECCV2016/224x224/h5_test/'
    h5valfiles = glob.glob(h5valpath+'*.h5')
    h5valfiles.sort()
    nbh5valfiles = len(h5valfiles)
