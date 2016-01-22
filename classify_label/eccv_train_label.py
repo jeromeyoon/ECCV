@@ -122,7 +122,6 @@ def shared_label():
            model.fit({'input1':input1,'input2':input2,'out':label},batch_size=batch_size,nb_epoch=1,shuffle=False,verbose=1)
            train_out= model.predict({'input1':input1,'input2':input2},batch_size=batch_size,verbose=1)      
            out = np.argmax(train_out['out'],axis=-1)
-           print('output size:',len(out))
            train_acc =getAP.loss(out,label) 
            total_trainacc +=train_acc
        total_trainacc/=traincount
@@ -212,73 +211,5 @@ def vgg_224():
        model.save_weights(savepath+'model_'+savename+'.hdf5', overwrite=True)
        gc.collect()
 
-def small_vgg():
-    for iteration in range(10):
-        print('\n'+str(iteration)+'th epoch '+'-'*50)
-        progbar = Progbar(target=(10620))
-        randfiles = np.random.permutation(nbh5files)   
-        for idx in range(nbh5files):    
-            f =h5py.File(h5files[idx],'r')
-	    if idx == 0:
-	        input1 = f['data1'][()]
-                input2 = f['data2'][()]
-                label = f['label'][()]        
-    	        input1 = input1.astype('float32')
-                input2 = input2.astype('float32')     
-         			
-	        datasize = input1.shape[0]
-                label = np.reshape(label,[datasize])
-	        label = np_utils.to_categorical(label, 13)
-                f.close()
-	   
-	    else:
-	        tmpinput1 = f['data1'][()]
-                tmpinput2 = f['data2'][()]
-                tmplabel = f['label'][()]        
-	        datasize = tmpinput1.shape[0]
-    	        tmpinput1 = tmpinput1.astype('float32')
-                tmpinput2 = tmpinput2.astype('float32')     
-                tmplabel = np.reshape(tmplabel,[datasize])
-	        tmplabel = np_utils.to_categorical(tmplabel, 13)
-	        input1=np.concatenate((input1,tmpinput1),axis=0)
-                input2=np.concatenate((input2,tmpinput2),axis=0)
-                label=np.concatenate((label,tmplabel),axis=0)
-	        f.close()
-        for idx in range(nbh5valfiles):    
-            f =h5py.File(h5valfiles[idx],'r')
-	    if idx == 0:
-	        input1_val = f['data1'][()]
-                input2_val = f['data2'][()]
-                label_val = f['label'][()]        
-			
-	        datasize = input1_val.shape[0]
-                label_val = np.reshape(label_val,[datasize])
-	        label_val = np_utils.to_categorical(label_val, 13)
-                f.close()
-	    else:
-	        tmpinput1 = f['data1'][()]
-                tmpinput2 = f['data2'][()]
-                tmplabel = f['label'][()]        
-	        datasize = tmpinput1.shape[0]
-                tmplabel = np.reshape(tmplabel,[datasize])
-	        tmplabel = np_utils.to_categorical(tmplabel, 13)
-	        input1_val=np.concatenate((input1_val,tmpinput1),axis=0)
-                input2_val=np.concatenate((input2_val,tmpinput2),axis=0)
-                label_val=np.concatenate((label_val,tmplabel),axis=0)
-	        f.close()
- 
-        traindata_size = input1.shape[0]
-        valdata_size = input1_val.shape[0] 
-        nb_trainbatch = int(np.ceil(float(traindata_size)/batch_size))
-
-        model.fit({'input1':input1,'input2':input2,'out':label},batch_size=10,nb_epoch=1,shuffle=False,verbose=1,validation_data={'input1':input1_val,'input2':input2_val,'out':label_val})
-        #val_accuracy= model.evaluate({'input1':input1_val,'input2':input2_val,'out':label_val},batch_size=batch_size,verbose=1)      
-
-        print('val acc:',val_accuracy) 
-        ## save model weights
-        savename = "%05d" % iter
-        model.save_weights(savepath+'model_'+savename+'.hdf5', overwrite=True)
-        gc.collect()
-   
 print('starting') 
 shared_label() 
